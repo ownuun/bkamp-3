@@ -166,11 +166,19 @@ export default function LoginPage() {
 
           <Separator className="my-4" />
 
-          <Link href="/demo">
-            <Button variant="secondary" className="w-full">
-              데모 체험하기
-            </Button>
-          </Link>
+          <div className="space-y-2">
+            <p className="text-center text-sm text-muted-foreground">
+              계정이 없으신가요?{" "}
+              <Link href="/register" className="text-primary font-medium hover:underline">
+                회원가입
+              </Link>
+            </p>
+            <Link href="/demo">
+              <Button variant="ghost" className="w-full text-muted-foreground">
+                데모 체험하기
+              </Button>
+            </Link>
+          </div>
         </CardContent>
       </Card>
     </div>

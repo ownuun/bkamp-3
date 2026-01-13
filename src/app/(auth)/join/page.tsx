@@ -103,7 +103,7 @@ export default function JoinPage() {
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center relative">
-          <Link href="/select-company" className="absolute left-6 top-6">
+          <Link href="/login" className="absolute left-6 top-6">
             <Button variant="ghost" size="icon">
               <ArrowLeft className="h-4 w-4" />
             </Button>
