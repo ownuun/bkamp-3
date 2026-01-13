@@ -76,7 +76,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 
     // Check if user is ADMIN or OWNER
     const membership = await getMembership(session.user.id, id);
-    if (!membership || ![CompanyRole.OWNER, CompanyRole.ADMIN].includes(membership.role)) {
+    if (!membership || (membership.role !== CompanyRole.OWNER && membership.role !== CompanyRole.ADMIN)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -154,7 +154,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     // Check if user is ADMIN or OWNER, or removing themselves
     const membership = await getMembership(session.user.id, id);
     const isSelf = userId === session.user.id;
-    const isAdmin = membership && [CompanyRole.OWNER, CompanyRole.ADMIN].includes(membership.role);
+    const isAdmin = membership && (membership.role === CompanyRole.OWNER || membership.role === CompanyRole.ADMIN);
 
     if (!membership || (!isAdmin && !isSelf)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
