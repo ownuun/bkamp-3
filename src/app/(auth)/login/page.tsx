@@ -164,13 +164,13 @@ export default function LoginPage() {
             </Button>
           </form>
 
-          <div className="space-y-2">
-            <p className="text-center text-sm text-muted-foreground">
-              <Link href="/demo" className="text-primary font-medium hover:underline">
-                데모 체험하기
-              </Link>
-            </p>
-          </div>
+          <Separator className="my-4" />
+
+          <Link href="/demo">
+            <Button variant="secondary" className="w-full">
+              데모 체험하기
+            </Button>
+          </Link>
         </CardContent>
       </Card>
     </div>
