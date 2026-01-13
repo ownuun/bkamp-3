@@ -40,6 +40,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
+type CategoryType = "DEVELOPER" | "NON_DEVELOPER" | "COMMON";
+
 interface Task {
   id: string;
   title: string;
@@ -55,11 +57,13 @@ interface Task {
     id: string;
     name: string | null;
     image: string | null;
+    userType: "DEVELOPER" | "NON_DEVELOPER";
   };
   category: {
     id: string;
     name: string;
     color: string;
+    type: CategoryType;
   };
 }
 
@@ -67,12 +71,14 @@ interface Category {
   id: string;
   name: string;
   color: string;
+  type: CategoryType;
 }
 
 interface User {
   id: string;
   name: string | null;
   image: string | null;
+  userType: "DEVELOPER" | "NON_DEVELOPER";
 }
 
 interface TasksClientProps {
@@ -114,6 +120,7 @@ export default function TasksClient({
   const [tasks, setTasks] = useState<Task[]>(initialTasks);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [workTypeFilter, setWorkTypeFilter] = useState<"DEVELOPER" | "NON_DEVELOPER" | "all">("DEVELOPER");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -132,8 +139,20 @@ export default function TasksClient({
       task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       task.user.name?.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = statusFilter === "all" || task.status === statusFilter;
-    return matchesSearch && matchesStatus;
+    const matchesWorkType =
+      workTypeFilter === "all" ||
+      task.category.type === workTypeFilter ||
+      task.category.type === "COMMON";
+    return matchesSearch && matchesStatus && matchesWorkType;
   });
+
+  // Filter categories and users based on workType for the form
+  const filteredCategories = categories.filter(
+    (cat) => workTypeFilter === "all" || cat.type === workTypeFilter || cat.type === "COMMON"
+  );
+  const filteredUsers = users.filter(
+    (user) => workTypeFilter === "all" || user.userType === workTypeFilter
+  );
 
   const todoTasks = filteredTasks.filter((t) => t.status === "TODO");
   const inProgressTasks = filteredTasks.filter((t) => t.status === "IN_PROGRESS");
@@ -220,7 +239,7 @@ export default function TasksClient({
         <div>
           <h1 className="text-2xl font-bold tracking-tight">업무 목록</h1>
           <p className="text-muted-foreground">
-            비개발자 직원들의 업무를 관리하세요.
+            직원들의 업무를 관리하세요.
           </p>
         </div>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -271,7 +290,7 @@ export default function TasksClient({
                       <SelectValue placeholder="선택" />
                     </SelectTrigger>
                     <SelectContent>
-                      {categories.map((cat) => (
+                      {filteredCategories.map((cat) => (
                         <SelectItem key={cat.id} value={cat.id}>
                           {cat.name}
                         </SelectItem>
@@ -291,7 +310,7 @@ export default function TasksClient({
                       <SelectValue placeholder="선택" />
                     </SelectTrigger>
                     <SelectContent>
-                      {users.map((user) => (
+                      {filteredUsers.map((user) => (
                         <SelectItem key={user.id} value={user.id}>
                           {user.name || "Unknown"}
                         </SelectItem>
@@ -355,6 +374,16 @@ export default function TasksClient({
             className="pl-10"
           />
         </div>
+        <Select value={workTypeFilter} onValueChange={(v) => setWorkTypeFilter(v as "DEVELOPER" | "NON_DEVELOPER" | "all")}>
+          <SelectTrigger className="w-[150px]">
+            <SelectValue placeholder="직군" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">전체</SelectItem>
+            <SelectItem value="DEVELOPER">개발</SelectItem>
+            <SelectItem value="NON_DEVELOPER">비개발</SelectItem>
+          </SelectContent>
+        </Select>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="w-[150px]">
             <SelectValue placeholder="상태 필터" />

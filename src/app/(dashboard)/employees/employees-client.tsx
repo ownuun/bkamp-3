@@ -65,6 +65,7 @@ export default function EmployeesClient({
   const router = useRouter();
   const [employees, setEmployees] = useState<Employee[]>(initialEmployees);
   const [searchQuery, setSearchQuery] = useState("");
+  const [userTypeFilter, setUserTypeFilter] = useState<"all" | "DEVELOPER" | "NON_DEVELOPER">("DEVELOPER");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -79,12 +80,14 @@ export default function EmployeesClient({
     githubUsername: "",
   });
 
-  const filteredEmployees = employees.filter(
-    (emp) =>
+  const filteredEmployees = employees.filter((emp) => {
+    const matchesSearch =
       emp.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       emp.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      emp.department?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+      emp.department?.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesUserType = userTypeFilter === "all" || emp.userType === userTypeFilter;
+    return matchesSearch && matchesUserType;
+  });
 
   const handleCreateEmployee = async () => {
     if (!formData.name || !formData.email || !formData.password) return;
@@ -264,7 +267,7 @@ export default function EmployeesClient({
         </Dialog>
       </div>
 
-      {/* Search */}
+      {/* Search & Filter */}
       <div className="flex items-center gap-4">
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -275,6 +278,16 @@ export default function EmployeesClient({
             className="pl-10"
           />
         </div>
+        <Select value={userTypeFilter} onValueChange={(v) => setUserTypeFilter(v as "all" | "DEVELOPER" | "NON_DEVELOPER")}>
+          <SelectTrigger className="w-[150px]">
+            <SelectValue placeholder="직군 필터" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">전체</SelectItem>
+            <SelectItem value="DEVELOPER">개발자</SelectItem>
+            <SelectItem value="NON_DEVELOPER">비개발자</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Table */}

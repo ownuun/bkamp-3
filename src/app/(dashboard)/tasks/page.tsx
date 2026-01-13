@@ -9,6 +9,7 @@ async function getTasks() {
           id: true,
           name: true,
           image: true,
+          userType: true,
         },
       },
       category: {
@@ -16,6 +17,7 @@ async function getTasks() {
           id: true,
           name: true,
           color: true,
+          type: true,
         },
       },
     },
@@ -25,20 +27,17 @@ async function getTasks() {
 
 async function getCategories() {
   return prisma.category.findMany({
-    where: {
-      type: { in: ["NON_DEVELOPER", "COMMON"] },
-    },
     orderBy: { name: "asc" },
   });
 }
 
 async function getUsers() {
   return prisma.user.findMany({
-    where: { userType: "NON_DEVELOPER" },
     select: {
       id: true,
       name: true,
       image: true,
+      userType: true,
     },
     orderBy: { name: "asc" },
   });
