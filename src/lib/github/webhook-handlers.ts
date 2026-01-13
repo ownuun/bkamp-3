@@ -94,10 +94,16 @@ interface IssuesPayload {
   sender: GitHubUser;
 }
 
-// Find user by GitHub username
+// Find user by GitHub username with their companies
 async function findUserByGitHubUsername(username: string) {
   return prisma.user.findFirst({
     where: { githubUsername: username },
+    include: {
+      companies: {
+        select: { companyId: true },
+        take: 1,
+      },
+    },
   });
 }
 
@@ -113,7 +119,9 @@ export async function handlePushEvent(payload: PushPayload) {
     if (!username) continue;
 
     const user = await findUserByGitHubUsername(username);
-    if (!user) continue;
+    if (!user || user.companies.length === 0) continue;
+
+    const companyId = user.companies[0].companyId;
 
     // Calculate additions/deletions (rough estimate from file changes)
     const additions = commit.added.length + commit.modified.length;
@@ -131,6 +139,7 @@ export async function handlePushEvent(payload: PushPayload) {
         additions,
         deletions,
         userId: user.id,
+        companyId,
         timestamp: new Date(commit.timestamp),
       },
     });
@@ -151,7 +160,9 @@ export async function handlePullRequestEvent(payload: PullRequestPayload) {
   }
 
   const user = await findUserByGitHubUsername(sender.login);
-  if (!user) return null;
+  if (!user || user.companies.length === 0) return null;
+
+  const companyId = user.companies[0].companyId;
 
   // Determine if it's a merge or regular PR
   const isMerge = action === "closed" && pull_request.merged;
@@ -177,6 +188,7 @@ export async function handlePullRequestEvent(payload: PullRequestPayload) {
       additions: pull_request.additions,
       deletions: pull_request.deletions,
       userId: user.id,
+      companyId,
       timestamp: new Date(),
     },
   });
@@ -196,7 +208,9 @@ export async function handlePullRequestReviewEvent(
   }
 
   const user = await findUserByGitHubUsername(sender.login);
-  if (!user) return null;
+  if (!user || user.companies.length === 0) return null;
+
+  const companyId = user.companies[0].companyId;
 
   const stateLabel =
     review.state === "approved"
@@ -213,6 +227,7 @@ export async function handlePullRequestReviewEvent(
       repository: repository.full_name,
       url: review.html_url,
       userId: user.id,
+      companyId,
       timestamp: new Date(),
     },
   });
@@ -230,7 +245,9 @@ export async function handleIssuesEvent(payload: IssuesPayload) {
   }
 
   const user = await findUserByGitHubUsername(sender.login);
-  if (!user) return null;
+  if (!user || user.companies.length === 0) return null;
+
+  const companyId = user.companies[0].companyId;
 
   const actionLabel =
     action === "opened"
@@ -250,6 +267,7 @@ export async function handleIssuesEvent(payload: IssuesPayload) {
       repository: repository.full_name,
       url: issue.html_url,
       userId: user.id,
+      companyId,
       timestamp: new Date(),
     },
   });
