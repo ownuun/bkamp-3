@@ -53,7 +53,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       ...company,
       role: membership.role,
       // Only show invite code to ADMIN and OWNER
-      inviteCode: [CompanyRole.OWNER, CompanyRole.ADMIN].includes(membership.role)
+      inviteCode: (membership.role === CompanyRole.OWNER || membership.role === CompanyRole.ADMIN)
         ? company.inviteCode
         : undefined,
     });
@@ -75,7 +75,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 
     // Check if user is ADMIN or OWNER
     const membership = await getMembership(session.user.id, id);
-    if (!membership || ![CompanyRole.OWNER, CompanyRole.ADMIN].includes(membership.role)) {
+    if (!membership || (membership.role !== CompanyRole.OWNER && membership.role !== CompanyRole.ADMIN)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
