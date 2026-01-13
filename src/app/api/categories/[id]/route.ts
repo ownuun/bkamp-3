@@ -1,16 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { updateCategorySchema } from "@/lib/validations/schemas";
+import { getCompanyContext, isCompanyContext } from "@/lib/api-utils";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
 // GET /api/categories/[id] - Get single category
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
+    const context = await getCompanyContext(request);
+    if (!isCompanyContext(context)) return context;
+
     const { id } = await params;
 
-    const category = await prisma.category.findUnique({
-      where: { id },
+    const category = await prisma.category.findFirst({
+      where: { id, companyId: context.companyId },
       include: {
         _count: {
           select: {
@@ -41,6 +45,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 // PUT /api/categories/[id] - Update category
 export async function PUT(request: NextRequest, { params }: RouteParams) {
   try {
+    const context = await getCompanyContext(request);
+    if (!isCompanyContext(context)) return context;
+
     const { id } = await params;
     const body = await request.json();
 
@@ -55,8 +62,10 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 
     const data = result.data;
 
-    // Check if category exists
-    const existing = await prisma.category.findUnique({ where: { id } });
+    // Check if category exists and belongs to this company
+    const existing = await prisma.category.findFirst({
+      where: { id, companyId: context.companyId },
+    });
     if (!existing) {
       return NextResponse.json(
         { error: "Category not found" },
@@ -73,6 +82,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
         where: {
           name: newName,
           type: newType,
+          companyId: context.companyId,
           NOT: { id },
         },
       });
@@ -111,11 +121,14 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 // DELETE /api/categories/[id] - Delete category
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
+    const context = await getCompanyContext(request);
+    if (!isCompanyContext(context)) return context;
+
     const { id } = await params;
 
-    // Check if category exists
-    const existing = await prisma.category.findUnique({
-      where: { id },
+    // Check if category exists and belongs to this company
+    const existing = await prisma.category.findFirst({
+      where: { id, companyId: context.companyId },
       include: {
         _count: {
           select: {

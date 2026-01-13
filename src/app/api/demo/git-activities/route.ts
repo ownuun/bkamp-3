@@ -1,39 +1,32 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getCompanyContext, isCompanyContext } from "@/lib/api-utils";
+import { getDemoCompanyId } from "@/lib/demo-context";
 import { GitType } from "@prisma/client";
 
-// GET /api/git-activities - List git activities for the current company
+// GET /api/demo/git-activities - Demo company git activities (public, read-only)
 export async function GET(request: NextRequest) {
   try {
-    // Validate company context
-    const context = await getCompanyContext(request);
-    if (!isCompanyContext(context)) return context;
+    const companyId = await getDemoCompanyId();
+
+    if (!companyId) {
+      return NextResponse.json(
+        { error: "Demo company not found" },
+        { status: 404 }
+      );
+    }
 
     const { searchParams } = new URL(request.url);
     const type = searchParams.get("type") as GitType | null;
     const userId = searchParams.get("userId");
     const repository = searchParams.get("repository");
-    const startDate = searchParams.get("startDate");
-    const endDate = searchParams.get("endDate");
-    const categoryId = searchParams.get("categoryId");
     const limit = parseInt(searchParams.get("limit") || "100");
     const offset = parseInt(searchParams.get("offset") || "0");
 
     const whereClause = {
-      companyId: context.companyId,
+      companyId,
       ...(type && { type }),
       ...(userId && { userId }),
       ...(repository && { repository: { contains: repository, mode: "insensitive" as const } }),
-      ...(categoryId && { categoryId }),
-      ...(startDate || endDate
-        ? {
-            timestamp: {
-              ...(startDate && { gte: new Date(startDate) }),
-              ...(endDate && { lte: new Date(endDate) }),
-            },
-          }
-        : {}),
     };
 
     const activities = await prisma.gitActivity.findMany({
@@ -60,10 +53,7 @@ export async function GET(request: NextRequest) {
       skip: offset,
     });
 
-    // Get total count for pagination
-    const total = await prisma.gitActivity.count({
-      where: whereClause,
-    });
+    const total = await prisma.gitActivity.count({ where: whereClause });
 
     return NextResponse.json({
       data: activities,
@@ -75,9 +65,9 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error("[API] GET /api/git-activities error:", error);
+    console.error("[API] GET /api/demo/git-activities error:", error);
     return NextResponse.json(
-      { error: "Failed to fetch git activities" },
+      { error: "Failed to fetch demo git activities" },
       { status: 500 }
     );
   }

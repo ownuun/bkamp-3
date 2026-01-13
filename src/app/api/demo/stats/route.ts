@@ -1,22 +1,24 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getCompanyContext, isCompanyContext } from "@/lib/api-utils";
+import { getDemoCompanyId } from "@/lib/demo-context";
 
-// GET /api/dashboard/stats - Aggregated dashboard statistics for current company
-export async function GET(request: NextRequest) {
+// GET /api/demo/stats - Demo dashboard statistics (public, read-only)
+export async function GET() {
   try {
-    // Validate company context
-    const context = await getCompanyContext(request);
-    if (!isCompanyContext(context)) return context;
+    const companyId = await getDemoCompanyId();
 
-    const { companyId } = context;
+    if (!companyId) {
+      return NextResponse.json(
+        { error: "Demo company not found" },
+        { status: 404 }
+      );
+    }
 
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const weekAgo = new Date(today);
     weekAgo.setDate(weekAgo.getDate() - 7);
 
-    // Run all queries in parallel for performance
     const [
       totalEmployees,
       developerCount,
@@ -34,22 +36,13 @@ export async function GET(request: NextRequest) {
       departmentStats,
       weeklyActivityByType,
     ] = await Promise.all([
-      // Employee counts (company members)
       prisma.companyMember.count({ where: { companyId } }),
       prisma.companyMember.count({
-        where: {
-          companyId,
-          user: { userType: "DEVELOPER" },
-        },
+        where: { companyId, user: { userType: "DEVELOPER" } },
       }),
       prisma.companyMember.count({
-        where: {
-          companyId,
-          user: { userType: "NON_DEVELOPER" },
-        },
+        where: { companyId, user: { userType: "NON_DEVELOPER" } },
       }),
-
-      // Today's git activity counts
       prisma.gitActivity.count({
         where: { companyId, type: "COMMIT", timestamp: { gte: today } },
       }),
@@ -65,13 +58,9 @@ export async function GET(request: NextRequest) {
       prisma.gitActivity.count({
         where: { companyId, type: "MERGE", timestamp: { gte: today } },
       }),
-
-      // Task counts
       prisma.task.count({ where: { companyId, status: "DONE" } }),
       prisma.task.count({ where: { companyId, status: "IN_PROGRESS" } }),
       prisma.task.count({ where: { companyId, status: "TODO" } }),
-
-      // Recent activities
       prisma.gitActivity.findMany({
         where: { companyId },
         take: 5,
@@ -81,8 +70,6 @@ export async function GET(request: NextRequest) {
           category: { select: { name: true, color: true } },
         },
       }),
-
-      // Recent tasks
       prisma.task.findMany({
         where: { companyId },
         take: 5,
@@ -92,20 +79,14 @@ export async function GET(request: NextRequest) {
           category: { select: { name: true, color: true } },
         },
       }),
-
-      // Department statistics (company members only)
       prisma.user.groupBy({
         by: ["department"],
         _count: { id: true },
         where: {
           department: { not: null },
-          companies: {
-            some: { companyId },
-          },
+          companies: { some: { companyId } },
         },
       }),
-
-      // Weekly activity by type
       prisma.gitActivity.groupBy({
         by: ["type"],
         _count: { id: true },
@@ -113,7 +94,6 @@ export async function GET(request: NextRequest) {
       }),
     ]);
 
-    // Calculate task completion rate
     const totalTasks = completedTasks + inProgressTasks + todoTasks;
     const taskCompletionRate =
       totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
@@ -158,9 +138,9 @@ export async function GET(request: NextRequest) {
       })),
     });
   } catch (error) {
-    console.error("[API] GET /api/dashboard/stats error:", error);
+    console.error("[API] GET /api/demo/stats error:", error);
     return NextResponse.json(
-      { error: "Failed to fetch dashboard stats" },
+      { error: "Failed to fetch demo stats" },
       { status: 500 }
     );
   }

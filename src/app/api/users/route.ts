@@ -1,50 +1,74 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getCompanyContext, isCompanyContext } from "@/lib/api-utils";
 import { createUserSchema } from "@/lib/validations/schemas";
 import bcrypt from "bcryptjs";
 import { UserType, Role } from "@prisma/client";
 
-// GET /api/users - List users with optional filters
+// GET /api/users - List company members with optional filters
 export async function GET(request: NextRequest) {
   try {
+    // Validate company context
+    const context = await getCompanyContext(request);
+    if (!isCompanyContext(context)) return context;
+
     const { searchParams } = new URL(request.url);
     const department = searchParams.get("department");
     const userType = searchParams.get("userType") as UserType | null;
     const role = searchParams.get("role") as Role | null;
     const search = searchParams.get("search");
 
-    const users = await prisma.user.findMany({
+    // Get company members
+    const members = await prisma.companyMember.findMany({
       where: {
-        ...(department && { department }),
-        ...(userType && { userType }),
-        ...(role && { role }),
-        ...(search && {
-          OR: [
-            { name: { contains: search, mode: "insensitive" } },
-            { email: { contains: search, mode: "insensitive" } },
-          ],
-        }),
+        companyId: context.companyId,
+        user: {
+          ...(department && { department }),
+          ...(userType && { userType }),
+          ...(role && { role }),
+          ...(search && {
+            OR: [
+              { name: { contains: search, mode: "insensitive" } },
+              { email: { contains: search, mode: "insensitive" } },
+            ],
+          }),
+        },
       },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        image: true,
-        role: true,
-        userType: true,
-        department: true,
-        githubUsername: true,
-        createdAt: true,
-        updatedAt: true,
-        _count: {
+      include: {
+        user: {
           select: {
-            tasks: true,
-            gitActivities: true,
+            id: true,
+            name: true,
+            email: true,
+            image: true,
+            role: true,
+            userType: true,
+            department: true,
+            githubUsername: true,
+            createdAt: true,
+            updatedAt: true,
+            _count: {
+              select: {
+                tasks: {
+                  where: { companyId: context.companyId },
+                },
+                gitActivities: {
+                  where: { companyId: context.companyId },
+                },
+              },
+            },
           },
         },
       },
-      orderBy: { createdAt: "desc" },
+      orderBy: { joinedAt: "desc" },
     });
+
+    // Transform to user-centric format with company role
+    const users = members.map((m) => ({
+      ...m.user,
+      companyRole: m.role,
+      joinedAt: m.joinedAt,
+    }));
 
     return NextResponse.json(users);
   } catch (error) {
@@ -56,9 +80,20 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST /api/users - Create a new user
+// POST /api/users - Create a new user and add to company
 export async function POST(request: NextRequest) {
   try {
+    // Validate company context (must be ADMIN or OWNER to add users)
+    const context = await getCompanyContext(request);
+    if (!isCompanyContext(context)) return context;
+
+    if (!["OWNER", "ADMIN"].includes(context.role)) {
+      return NextResponse.json(
+        { error: "Only admins can add users" },
+        { status: 403 }
+      );
+    }
+
     const body = await request.json();
 
     // Validate input
@@ -78,35 +113,82 @@ export async function POST(request: NextRequest) {
     });
 
     if (existing) {
+      // If user exists, check if already in this company
+      const existingMember = await prisma.companyMember.findUnique({
+        where: {
+          userId_companyId: {
+            userId: existing.id,
+            companyId: context.companyId,
+          },
+        },
+      });
+
+      if (existingMember) {
+        return NextResponse.json(
+          { error: "User is already a member of this company" },
+          { status: 409 }
+        );
+      }
+
+      // Add existing user to company
+      await prisma.companyMember.create({
+        data: {
+          userId: existing.id,
+          companyId: context.companyId,
+          role: "MEMBER",
+        },
+      });
+
       return NextResponse.json(
-        { error: "Email already exists" },
-        { status: 409 }
+        {
+          ...existing,
+          companyRole: "MEMBER",
+        },
+        { status: 201 }
       );
     }
 
     // Hash password
     const hashedPassword = await bcrypt.hash(data.password, 10);
 
-    // Create user
-    const user = await prisma.user.create({
-      data: {
-        ...data,
-        password: hashedPassword,
-      },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        image: true,
-        role: true,
-        userType: true,
-        department: true,
-        githubUsername: true,
-        createdAt: true,
-      },
+    // Create user and add to company in a transaction
+    const user = await prisma.$transaction(async (tx) => {
+      const newUser = await tx.user.create({
+        data: {
+          ...data,
+          password: hashedPassword,
+        },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          image: true,
+          role: true,
+          userType: true,
+          department: true,
+          githubUsername: true,
+          createdAt: true,
+        },
+      });
+
+      await tx.companyMember.create({
+        data: {
+          userId: newUser.id,
+          companyId: context.companyId,
+          role: "MEMBER",
+        },
+      });
+
+      return newUser;
     });
 
-    return NextResponse.json(user, { status: 201 });
+    return NextResponse.json(
+      {
+        ...user,
+        companyRole: "MEMBER",
+      },
+      { status: 201 }
+    );
   } catch (error) {
     console.error("[API] POST /api/users error:", error);
     return NextResponse.json(

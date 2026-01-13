@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { useCompany } from "@/lib/company-context";
 import {
   LayoutDashboard,
   Users,
@@ -11,6 +12,7 @@ import {
   Settings,
   GitBranch,
   FolderKanban,
+  Building2,
 } from "lucide-react";
 
 const navigation = [
@@ -25,6 +27,7 @@ const navigation = [
 
 export function MobileSidebar() {
   const pathname = usePathname();
+  const { currentCompany } = useCompany();
 
   return (
     <div className="flex grow flex-col gap-y-5 overflow-y-auto bg-card px-6 pb-4 pt-4">
@@ -36,6 +39,30 @@ export function MobileSidebar() {
           <span className="text-xl font-bold">Work Monitor</span>
         </Link>
       </div>
+
+      {/* Current Company */}
+      {currentCompany && (
+        <div className="px-2 py-3 bg-muted/50 rounded-lg">
+          <div className="flex items-center gap-2">
+            <Building2 className="h-4 w-4 text-muted-foreground" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium truncate">{currentCompany.name}</p>
+              <p className="text-xs text-muted-foreground">
+                {currentCompany.role === "OWNER" && "소유자"}
+                {currentCompany.role === "ADMIN" && "관리자"}
+                {currentCompany.role === "MANAGER" && "매니저"}
+                {currentCompany.role === "MEMBER" && "멤버"}
+              </p>
+            </div>
+            {currentCompany.isDemo && (
+              <span className="text-xs bg-yellow-100 text-yellow-800 px-1.5 py-0.5 rounded">
+                Demo
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+
       <nav className="flex flex-1 flex-col">
         <ul role="list" className="flex flex-1 flex-col gap-y-7">
           <li>
