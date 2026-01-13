@@ -15,12 +15,12 @@ model Account {
   type              String
   provider          String
   providerAccountId String
-  refresh_token     String? @db.Text
-  access_token      String? @db.Text
+  refresh_token     String?
+  access_token      String?
   expires_at        Int?
   token_type        String?
   scope             String?
-  id_token          String? @db.Text
+  id_token          String?
   session_state     String?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -45,6 +45,39 @@ model VerificationToken {
 }
 
 // Application Models
+model Company {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  logo        String?
+  inviteCode  String   @unique
+  isDemo      Boolean  @default(false)
+
+  members       CompanyMember[]
+  tasks         Task[]
+  categories    Category[]
+  gitActivities GitActivity[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model CompanyMember {
+  id        String      @id @default(cuid())
+  role      CompanyRole @default(MEMBER)
+  joinedAt  DateTime    @default(now())
+
+  userId    String
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, companyId])
+  @@index([userId])
+  @@index([companyId])
+}
+
 model User {
   id            String    @id @default(cuid())
   name          String?
@@ -59,6 +92,7 @@ model User {
 
   accounts      Account[]
   sessions      Session[]
+  companies     CompanyMember[]
   tasks         Task[]
   gitActivities GitActivity[]
 
@@ -69,7 +103,7 @@ model User {
 model Task {
   id          String     @id @default(cuid())
   title       String
-  description String?    @db.Text
+  description String?
   status      TaskStatus @default(TODO)
   priority    Priority   @default(MEDIUM)
   estimatedHours Float?
@@ -82,15 +116,22 @@ model Task {
   userId      String
   user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  companyId   String
+  company     Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
+
+  @@index([companyId])
+  @@index([userId])
+  @@index([status])
 }
 
 model GitActivity {
   id          String    @id @default(cuid())
   type        GitType
   title       String
-  description String?   @db.Text
+  description String?
   sha         String?
   repository  String
   branch      String?
@@ -104,8 +145,15 @@ model GitActivity {
   userId      String
   user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  companyId   String
+  company     Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
   timestamp   DateTime
   createdAt   DateTime  @default(now())
+
+  @@index([companyId])
+  @@index([userId])
+  @@index([timestamp])
 }
 
 model Category {
@@ -116,16 +164,27 @@ model Category {
   type        CategoryType
   isDefault   Boolean  @default(false)
 
-  tasks       Task[]
+  tasks         Task[]
   gitActivities GitActivity[]
+
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  @@unique([name, type])
+  @@unique([name, type, companyId])
+  @@index([companyId])
 }
 
 // Enums
+enum CompanyRole {
+  OWNER
+  ADMIN
+  MANAGER
+  MEMBER
+}
+
 enum Role {
   ADMIN
   MANAGER

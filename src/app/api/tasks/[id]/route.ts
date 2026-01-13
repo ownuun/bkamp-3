@@ -1,16 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { updateTaskSchema } from "@/lib/validations/schemas";
+import { getCompanyContext, isCompanyContext } from "@/lib/api-utils";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
 // GET /api/tasks/[id] - Get single task
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
+    const context = await getCompanyContext(request);
+    if (!isCompanyContext(context)) return context;
+
     const { id } = await params;
 
-    const task = await prisma.task.findUnique({
-      where: { id },
+    const task = await prisma.task.findFirst({
+      where: { id, companyId: context.companyId },
       include: {
         user: {
           select: {
@@ -48,6 +52,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 // PUT /api/tasks/[id] - Update task
 export async function PUT(request: NextRequest, { params }: RouteParams) {
   try {
+    const context = await getCompanyContext(request);
+    if (!isCompanyContext(context)) return context;
+
     const { id } = await params;
     const body = await request.json();
 
@@ -62,16 +69,18 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 
     const data = result.data;
 
-    // Check if task exists
-    const existing = await prisma.task.findUnique({ where: { id } });
+    // Check if task exists and belongs to this company
+    const existing = await prisma.task.findFirst({
+      where: { id, companyId: context.companyId },
+    });
     if (!existing) {
       return NextResponse.json({ error: "Task not found" }, { status: 404 });
     }
 
     // Verify category if changing
     if (data.categoryId) {
-      const category = await prisma.category.findUnique({
-        where: { id: data.categoryId },
+      const category = await prisma.category.findFirst({
+        where: { id: data.categoryId, companyId: context.companyId },
       });
       if (!category) {
         return NextResponse.json(
@@ -83,11 +92,16 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 
     // Verify user if changing
     if (data.userId) {
-      const user = await prisma.user.findUnique({
-        where: { id: data.userId },
+      const userMembership = await prisma.companyMember.findUnique({
+        where: {
+          userId_companyId: {
+            userId: data.userId,
+            companyId: context.companyId,
+          },
+        },
       });
-      if (!user) {
-        return NextResponse.json({ error: "User not found" }, { status: 404 });
+      if (!userMembership) {
+        return NextResponse.json({ error: "User not found in this company" }, { status: 404 });
       }
     }
 
@@ -138,10 +152,15 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 // DELETE /api/tasks/[id] - Delete task
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
+    const context = await getCompanyContext(request);
+    if (!isCompanyContext(context)) return context;
+
     const { id } = await params;
 
-    // Check if task exists
-    const existing = await prisma.task.findUnique({ where: { id } });
+    // Check if task exists and belongs to this company
+    const existing = await prisma.task.findFirst({
+      where: { id, companyId: context.companyId },
+    });
     if (!existing) {
       return NextResponse.json({ error: "Task not found" }, { status: 404 });
     }

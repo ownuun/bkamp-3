@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createTaskSchema } from "@/lib/validations/schemas";
+import { getCompanyContext, isCompanyContext } from "@/lib/api-utils";
 import { TaskStatus, Priority } from "@prisma/client";
 
 // GET /api/tasks - List tasks with optional filters
 export async function GET(request: NextRequest) {
   try {
+    const context = await getCompanyContext(request);
+    if (!isCompanyContext(context)) return context;
+
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status") as TaskStatus | null;
     const priority = searchParams.get("priority") as Priority | null;
@@ -15,6 +19,7 @@ export async function GET(request: NextRequest) {
 
     const tasks = await prisma.task.findMany({
       where: {
+        companyId: context.companyId,
         ...(status && { status }),
         ...(priority && { priority }),
         ...(categoryId && { categoryId }),
@@ -58,6 +63,9 @@ export async function GET(request: NextRequest) {
 // POST /api/tasks - Create a new task
 export async function POST(request: NextRequest) {
   try {
+    const context = await getCompanyContext(request);
+    if (!isCompanyContext(context)) return context;
+
     const body = await request.json();
 
     // Validate input
@@ -71,9 +79,9 @@ export async function POST(request: NextRequest) {
 
     const data = result.data;
 
-    // Verify category exists
-    const category = await prisma.category.findUnique({
-      where: { id: data.categoryId },
+    // Verify category exists and belongs to the same company
+    const category = await prisma.category.findFirst({
+      where: { id: data.categoryId, companyId: context.companyId },
     });
     if (!category) {
       return NextResponse.json(
@@ -82,12 +90,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verify user exists
-    const user = await prisma.user.findUnique({
-      where: { id: data.userId },
+    // Verify user exists and is a member of the company
+    const userMembership = await prisma.companyMember.findUnique({
+      where: {
+        userId_companyId: {
+          userId: data.userId,
+          companyId: context.companyId,
+        },
+      },
     });
-    if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    if (!userMembership) {
+      return NextResponse.json({ error: "User not found in this company" }, { status: 404 });
     }
 
     // Create task
@@ -101,6 +114,7 @@ export async function POST(request: NextRequest) {
         dueDate: data.dueDate ? new Date(data.dueDate) : null,
         categoryId: data.categoryId,
         userId: data.userId,
+        companyId: context.companyId,
       },
       include: {
         user: {

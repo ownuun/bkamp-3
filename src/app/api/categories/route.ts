@@ -1,16 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createCategorySchema } from "@/lib/validations/schemas";
+import { getCompanyContext, isCompanyContext } from "@/lib/api-utils";
 import { CategoryType } from "@prisma/client";
 
 // GET /api/categories - List categories with optional filters
 export async function GET(request: NextRequest) {
   try {
+    const context = await getCompanyContext(request);
+    if (!isCompanyContext(context)) return context;
+
     const { searchParams } = new URL(request.url);
     const type = searchParams.get("type") as CategoryType | null;
 
     const categories = await prisma.category.findMany({
       where: {
+        companyId: context.companyId,
         ...(type && { type }),
       },
       include: {
@@ -37,6 +42,9 @@ export async function GET(request: NextRequest) {
 // POST /api/categories - Create a new category
 export async function POST(request: NextRequest) {
   try {
+    const context = await getCompanyContext(request);
+    if (!isCompanyContext(context)) return context;
+
     const body = await request.json();
 
     // Validate input
@@ -50,13 +58,12 @@ export async function POST(request: NextRequest) {
 
     const data = result.data;
 
-    // Check if category with same name and type exists
-    const existing = await prisma.category.findUnique({
+    // Check if category with same name and type exists in this company
+    const existing = await prisma.category.findFirst({
       where: {
-        name_type: {
-          name: data.name,
-          type: data.type,
-        },
+        name: data.name,
+        type: data.type,
+        companyId: context.companyId,
       },
     });
 
@@ -69,7 +76,10 @@ export async function POST(request: NextRequest) {
 
     // Create category
     const category = await prisma.category.create({
-      data,
+      data: {
+        ...data,
+        companyId: context.companyId,
+      },
       include: {
         _count: {
           select: {
