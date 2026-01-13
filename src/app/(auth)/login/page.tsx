@@ -174,7 +174,7 @@ export default function LoginPage() {
               </Link>
             </p>
             <Link href="/demo">
-              <Button variant="ghost" className="w-full text-muted-foreground">
+              <Button variant="secondary" className="w-full">
                 데모 체험하기
               </Button>
             </Link>

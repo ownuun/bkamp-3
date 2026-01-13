@@ -112,13 +112,13 @@ export default function SelectCompanyPage() {
               ))}
 
               <div className="pt-4 border-t space-y-2">
-                <Link href="/register">
+                <Link href="/create-company">
                   <Button variant="outline" className="w-full gap-2">
                     <Plus className="h-4 w-4" />
                     새 회사 등록
                   </Button>
                 </Link>
-                <Link href="/join">
+                <Link href="/join-company">
                   <Button variant="outline" className="w-full gap-2">
                     <UserPlus className="h-4 w-4" />
                     초대 코드로 가입
@@ -128,13 +128,13 @@ export default function SelectCompanyPage() {
             </>
           ) : (
             <div className="space-y-3">
-              <Link href="/register">
+              <Link href="/create-company">
                 <Button className="w-full gap-2">
                   <Plus className="h-4 w-4" />
                   새 회사 만들기
                 </Button>
               </Link>
-              <Link href="/join">
+              <Link href="/join-company">
                 <Button variant="outline" className="w-full gap-2">
                   <UserPlus className="h-4 w-4" />
                   초대 코드로 기존 회사 가입
