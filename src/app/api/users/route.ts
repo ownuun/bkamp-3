@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getCompanyContext, isCompanyContext } from "@/lib/api-utils";
+import { getCompanyContext, isCompanyContext, isAdmin } from "@/lib/api-utils";
 import { createUserSchema } from "@/lib/validations/schemas";
 import bcrypt from "bcryptjs";
 import { UserType, Role } from "@prisma/client";
@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
     const context = await getCompanyContext(request);
     if (!isCompanyContext(context)) return context;
 
-    if (!["OWNER", "ADMIN"].includes(context.role)) {
+    if (!isAdmin(context.role)) {
       return NextResponse.json(
         { error: "Only admins can add users" },
         { status: 403 }

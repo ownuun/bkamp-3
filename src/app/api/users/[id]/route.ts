@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getCompanyContext, isCompanyContext } from "@/lib/api-utils";
+import { getCompanyContext, isCompanyContext, isAdmin } from "@/lib/api-utils";
 import { updateUserSchema } from "@/lib/validations/schemas";
 import bcrypt from "bcryptjs";
 
@@ -126,9 +126,9 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 
     // Only self or admin can update
     const isSelf = context.userId === id;
-    const isAdmin = ["OWNER", "ADMIN"].includes(context.role);
+    const hasAdminRole = isAdmin(context.role);
 
-    if (!isSelf && !isAdmin) {
+    if (!isSelf && !hasAdminRole) {
       return NextResponse.json(
         { error: "You can only update your own profile" },
         { status: 403 }
@@ -213,7 +213,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     const { id } = await params;
 
     // Only admin can remove users
-    if (!["OWNER", "ADMIN"].includes(context.role)) {
+    if (!isAdmin(context.role)) {
       return NextResponse.json(
         { error: "Only admins can remove users" },
         { status: 403 }
