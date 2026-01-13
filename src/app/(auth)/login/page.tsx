@@ -166,18 +166,6 @@ export default function LoginPage() {
 
           <div className="space-y-2">
             <p className="text-center text-sm text-muted-foreground">
-              계정이 없으신가요?{" "}
-              <Link href="/register" className="text-primary font-medium hover:underline">
-                새 회사 등록
-              </Link>
-            </p>
-            <p className="text-center text-sm text-muted-foreground">
-              초대 코드가 있으신가요?{" "}
-              <Link href="/join" className="text-primary font-medium hover:underline">
-                기존 회사 가입
-              </Link>
-            </p>
-            <p className="text-center text-sm text-muted-foreground">
               <Link href="/demo" className="text-primary font-medium hover:underline">
                 데모 체험하기
               </Link>
