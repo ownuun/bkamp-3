@@ -173,8 +173,8 @@ export default function LoginPage() {
                 회원가입
               </Link>
             </p>
-            <Link href="/demo">
-              <Button variant="outline" className="w-full bg-yellow-50 border-yellow-300 text-yellow-800 hover:bg-yellow-100 hover:border-yellow-400">
+            <Link href="/demo" className="block mt-4">
+              <Button variant="outline" className="w-full bg-muted/50 border-border hover:bg-muted">
                 데모 체험하기
               </Button>
             </Link>
