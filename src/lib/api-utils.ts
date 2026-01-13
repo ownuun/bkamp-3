@@ -53,10 +53,10 @@ export function isCompanyContext(result: CompanyContext | NextResponse): result 
 
 // Check if user has admin role (OWNER or ADMIN)
 export function isAdmin(role: CompanyRole): boolean {
-  return [CompanyRole.OWNER, CompanyRole.ADMIN].includes(role);
+  return role === CompanyRole.OWNER || role === CompanyRole.ADMIN;
 }
 
 // Check if user has manager role (OWNER, ADMIN, or MANAGER)
 export function isManager(role: CompanyRole): boolean {
-  return [CompanyRole.OWNER, CompanyRole.ADMIN, CompanyRole.MANAGER].includes(role);
+  return role === CompanyRole.OWNER || role === CompanyRole.ADMIN || role === CompanyRole.MANAGER;
 }
