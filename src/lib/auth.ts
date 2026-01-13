@@ -90,6 +90,28 @@ export const authOptions: NextAuthOptions = {
     strategy: "jwt",
   },
   callbacks: {
+    async signIn({ user, account }) {
+      // For OAuth providers, check if user needs to set up company
+      if (account?.provider === "github" || account?.provider === "google") {
+        const memberships = await prisma.companyMember.findMany({
+          where: { userId: user.id },
+        });
+
+        // If no company, they'll be redirected to select-company after login
+        // The redirect happens in the redirect callback below
+      }
+      return true;
+    },
+    async redirect({ url, baseUrl }) {
+      // If redirecting to dashboard, check if user has a company
+      if (url.includes("/dashboard")) {
+        return url;
+      }
+      // Default behavior
+      if (url.startsWith("/")) return `${baseUrl}${url}`;
+      if (new URL(url).origin === baseUrl) return url;
+      return baseUrl;
+    },
     async jwt({ token, user, account, trigger, session }) {
       if (user) {
         token.id = user.id;

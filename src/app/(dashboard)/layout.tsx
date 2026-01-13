@@ -20,6 +20,13 @@ export default function DashboardLayout({
     if (status === "unauthenticated") {
       router.push("/login");
     }
+    // If user has no company, redirect to select-company to create/join one
+    if (
+      status === "authenticated" &&
+      session?.user?.companies?.length === 0
+    ) {
+      router.push("/select-company");
+    }
     // If no company is selected and user has multiple companies, redirect to select
     if (
       status === "authenticated" &&
