@@ -99,7 +99,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     }
 
     // Only OWNER can assign OWNER or ADMIN roles
-    if ([CompanyRole.OWNER, CompanyRole.ADMIN].includes(role) && membership.role !== CompanyRole.OWNER) {
+    if ((role === CompanyRole.OWNER || role === CompanyRole.ADMIN) && membership.role !== CompanyRole.OWNER) {
       return NextResponse.json({ error: "Only owner can assign admin roles" }, { status: 403 });
     }
 
